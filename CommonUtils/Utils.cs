@@ -7,11 +7,13 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Runtime.Serialization.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
 
@@ -167,6 +169,13 @@ namespace CommonUtils
             else
                 return k.Value.ToString(CultureInfo.InvariantCulture);
         }
+        public static string ToStringInvariant(this double? k)
+        {
+            if (k == null)
+                return IntMinValueAsString;
+            else
+                return k.Value.ToString(CultureInfo.InvariantCulture);
+        }
         public static void InsertAndExpand<T>(this List<T> list, int index, T item)
         {
             if (index < 0)
@@ -268,6 +277,25 @@ namespace CommonUtils
             return DeserializeFromJson<IEnumerable<KeyValuePair<TKey, TValue>>>(
                 dictionaryDataContractJsonSerializers[typeof(IEnumerable<KeyValuePair<TKey, TValue>>)]
                 , jsonSerializedDisctionary);
+        }
+
+        public static string SerializeToXml<T>(T item)
+        {
+            using (var writer = new StringWriter())
+            {
+                var serializer = new System.Xml.Serialization.XmlSerializer(typeof(T));
+                serializer.Serialize(writer, item);
+                return writer.ToString();
+            }
+        }
+
+        public static T DeserializeFromXml<T>(string xmlString)
+        {
+            using (var reader = new StringReader(xmlString))
+            {
+                var serializer = new System.Xml.Serialization.XmlSerializer(typeof(T));
+                return (T) serializer.Deserialize(reader);
+            }
         }
 
         public static string ToStringNullSafe(this object o)
@@ -531,6 +559,15 @@ namespace CommonUtils
             return IfNotNull(input, resultSelector, default(TResult));
         }
 
+        public static TResult IfNotNullOrEmpty<TInput, TResult>(this IList<TInput> list, Func<IList<TInput>, TResult> fn, TResult defaultValue = default(TResult))
+        {
+            if (list == null || list.Count == 0)
+                return defaultValue;
+            else 
+                return fn(list);
+        }
+
+
         public static TV MostOccuring<T,TV>(this IEnumerable<T> sequenceElements, Func<T, TV> selector)
         {
             var frequencies =
@@ -767,12 +804,14 @@ namespace CommonUtils
         }
 
         public static readonly char[] TabDelimiter = new char[] { '\t' };
+        public static readonly char[] UnderscoreDelimiter = new char[] { '_' };
         public static readonly char[] CommaDelimiter = new char[] { ',' };
         public static readonly char[] SemiColonDelimiter = new char[] { ';' };
         public static readonly char[] SpaceDelimiter = new char[] { ' ' };
         public static readonly char[] TildaDelimiter = new char[] { '~' };
         public static readonly char[] DotDelimiter = new char[] { '.' };
         public static readonly char[] PipeDelimiter = new char[] { '|' };
+        public static readonly char[] ColonDelimiter = new char[] { ':' };
         public static readonly string CommaDelimiterString = ",";
 
         public static int IncrementCountInDictionary<TKey>(this IDictionary<TKey, int> dictionary, TKey key)
@@ -1007,6 +1046,14 @@ namespace CommonUtils
             return currentElement.IfNotNull(e => e.Elements(elementNamesInPath.Last()), Enumerable.Empty<XElement>());
         }
 
+        public static bool? EqualAndNotWhitespace(this string s1, string s2, StringComparison compareMode = StringComparison.Ordinal)
+        {
+            if (string.IsNullOrWhiteSpace(s1) || string.IsNullOrWhiteSpace(s2))
+                return null;
+            else
+                return string.Equals(s1, s2, compareMode);
+        }
+
 		public static IEnumerable<string> GetXElementText(this XElement element)
 		{
 			return element.Nodes().OfType<XText>().Select(t => t.Value);
@@ -1028,6 +1075,27 @@ namespace CommonUtils
 			}
 		}
 
+        /// <summary>
+        /// Retrieve element of node specified by path
+        /// </summary>
+        /// <param name="xml">Xml to search for the path</param>
+        /// <param name="attributeName">If value of attribute is required then set this parameter otherwise leave it to null in which case content of node is returned</param>
+        /// <param name="elementNamesInPath">list of elements that makes up the path, Example: ["Entity", "NameGroup", "Name"]</param>
+        /// <returns>If multiple nodes matching the path are found than their values is concated delimited by "~" char. If path is not found then empty string is returned.</returns>
+        public static string GetPathNodeValue(string xml, string attributeName
+            , params string[] elementNamesInPath)
+        {
+            var element = XElement.Parse(xml);
+            return element.GetPathNodeValue(attributeName, elementNamesInPath);
+        }
+
+        /// <summary>
+        /// Retrieve element of node specified by path
+        /// </summary>
+        /// <param name="startElement">Element to search for the path</param>
+        /// <param name="attributeName">If value of attribute is required then set this parameter otherwise leave it to null in which case content of node is returned</param>
+        /// <param name="elementNamesInPath">list of elements that makes up the path, Example: ["Entity", "NameGroup", "Name"]</param>
+        /// <returns>If multiple nodes matching the path are found than their values is concated delimited by "~" char. If path is not found then empty string is returned.</returns>
         public static string GetPathNodeValue(this XElement startElement, string attributeName
             , params string[] elementNamesInPath)
         {
@@ -1824,34 +1892,47 @@ namespace CommonUtils
             return linkedList == null || linkedList.First == null;
         }
 
-        public static void RemoveWhere<T>(this LinkedList<T> linkedList, Func<T, bool> predicate)
+        public static int RemoveWhere<T>(this LinkedList<T> linkedList, Func<T, bool> predicate)
         {
             var linkedListNodeToCheck = linkedList.First;
+            var removeCount = 0;
+
             while (linkedListNodeToCheck != null)
             {
                 if (predicate(linkedListNodeToCheck.Value))
+                {
                     linkedListNodeToCheck = linkedList.RemoveAndGetNext(linkedListNodeToCheck);
+                    removeCount++;
+                }
                 else
                     linkedListNodeToCheck = linkedListNodeToCheck.Next;
             }
+
+            return removeCount;
         }
 
-        public static void RemoveWhere<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, Func<KeyValuePair<TKey, TValue>, bool> predicate)
+        public static int RemoveWhere<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, Func<KeyValuePair<TKey, TValue>, bool> predicate)
         {
             var keysToRemove = dictionary.Where(predicate).Select(kvp => kvp.Key).ToList();
-            dictionary.RemoveKeys(keysToRemove);
+            return dictionary.RemoveKeys(keysToRemove);
         }
 
-        public static void RemoveKeys<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, IList<TKey> keysToRemove)
+        public static int RemoveKeys<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, IList<TKey> keysToRemove)
         {
+            var removeCount = 0;
             foreach (var key in keysToRemove)
+            {
                 dictionary.Remove(key);
+                removeCount++;
+            }
+
+            return removeCount;
         }
 
-        public static void RemoveWhere<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, Func<TKey, bool> predicate)
+        public static int RemoveWhere<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, Func<TKey, bool> predicate)
         {
             var keysToRemove = dictionary.Keys.Where(predicate).ToList();
-            dictionary.RemoveKeys(keysToRemove);
+            return dictionary.RemoveKeys(keysToRemove);
         }
 
         public static IEnumerable<LinkedListNode<T>> Nodes<T>(this LinkedList<T> linkedList)
@@ -1896,6 +1977,19 @@ namespace CommonUtils
         {
             return GetValueOrDefault(dictionary, key, default(TValue));
         }
+
+        public static TValue AddOrGetValue<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key, Func<TValue> getValueIfNotExist)
+        {
+            TValue existingValue;
+            if (!dictionary.TryGetValue(key, out existingValue))
+            {
+                existingValue = getValueIfNotExist();
+                dictionary.Add(key, existingValue);
+            }
+
+            return existingValue;
+        }
+
 
         public static int ToInt(this bool? booleanValue)
         {
@@ -2036,12 +2130,12 @@ namespace CommonUtils
         /// </summary>
         /// <param name="stringToConvert">Base64 encoded string</param>
         /// <returns></returns>
-        public static byte[] Base64StringToByteArray(string stringToConvert)
+        public static byte[] Base64StringToByteArray(this string stringToConvert)
         {
             return Convert.FromBase64String(stringToConvert);
         }
 
-        public static Guid Base64StringToGuid(string valueToConvertFrom)
+        public static Guid Base64StringToGuid(this string valueToConvertFrom)
         {
             if (!String.IsNullOrEmpty(valueToConvertFrom))
                 return new Guid(Base64StringToByteArray(valueToConvertFrom));
@@ -2145,6 +2239,22 @@ namespace CommonUtils
             return result;
         }
 
+        public static long IntPairToLong(int left, int right)
+        {
+            //implicit conversion of left to a long
+            long res = left;
+
+            //shift the bits creating an empty space on the right
+            // ex: 0x0000CFFF becomes 0xCFFF0000
+            res = (res << 32);
+
+            //combine the bits on the right with the previous value
+            // ex: 0xCFFF0000 | 0x0000ABCD becomes 0xCFFFABCD
+            res = res | (long)(uint)right; //uint first to prevent loss of signed bit
+
+            //return the combined result
+            return res;
+        }
 
         public static string AddToNumberAsString(string numberAsString, double numberToAdd)
         {
@@ -2232,6 +2342,20 @@ namespace CommonUtils
                 return set2.Where(set1.Contains);
             else
                 return set1.Where(set2.Contains);
+        }
+        public static IEnumerable<KeyValuePair<TKey, TValue>> IntersectKeys<TKey, TValue>(this IDictionary<TKey, TValue> set1, IDictionary<TKey, TValue> set2)
+        {
+            if (set1 == null || set2 == null)
+                return Enumerable.Empty<KeyValuePair<TKey, TValue>>();
+
+            if (set1.Count > set2.Count)
+            {
+                var temp = set1;
+                set1 = set2;
+                set2 = temp;
+            }
+
+            return set1.Where(kvp => set2.ContainsKey(kvp.Key));
         }
 
         public static bool DoesSetsOverlap<T>(this HashSet<T> set1, HashSet<T> set2)
