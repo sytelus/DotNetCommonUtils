@@ -1338,6 +1338,12 @@ namespace CommonUtils
             value1 = value2;
             value2 = temp;
         }
+        public static void Swap<T>(IList<T> list, int index1, int index2)
+        {
+            var temp = list[index1];
+            list[index1] = list[index2];
+            list[index2] = temp;
+        }
 
         public static bool SwapIfLeftIsLargerValue(ref string leftValue, ref string rightValue)
         {
@@ -2271,6 +2277,12 @@ namespace CommonUtils
         {
             var rnd = new Random(randomSeed);
             return source.OrderBy((item) => rnd.Next());
+        }
+        public static void Shuffle<T>(this IList<T> list, int randomSeed)
+        {
+            var rnd = new Random(randomSeed);
+            for(var i = list.Count - 1; i > 0; i--)
+                Swap(list, rnd.Next(i + 1), i);
         }
 
         public static IEnumerable<T> Slice<T>(this T[] source, int start, int end)

@@ -55,6 +55,7 @@
     <Compile Include="ExtentionMethods.cs" />
     <Compile Include="FileFormatParsers\QuickbooksIifParser.cs" />
     <Compile Include="FunctionalUtilities.cs" />
+    <Compile Include="GaussianDistribution.cs" />
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="Hasher.cs" />
     <Compile Include="IEmpty.cs" />
@@ -63,6 +64,7 @@
     <Compile Include="KeyValuePairEqualityComparer.cs" />
     <Compile Include="LruCache.cs" />
     <Compile Include="MessagePipe.cs" />
+    <Compile Include="OnlineAverage.cs" />
     <Compile Include="Phrase.cs" />
     <Compile Include="PhraseSet.cs" />
     <Compile Include="NumberToWords.cs" />
