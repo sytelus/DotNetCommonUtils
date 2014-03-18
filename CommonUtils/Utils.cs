@@ -2492,9 +2492,9 @@ namespace CommonUtils
                 for (var j = 0; j < vectors.GetLength(1); j++)
                     vectors[i, j] = initialValue;
         }
-        public static void InitializeArrayElement<T>(T[] vector, T initialValue)
+        public static void InitializeArrayElement<T>(IList<T> vector, T initialValue)
         {
-            for (var i = 0; i < vector.Length; i++)
+            for (var i = 0; i < vector.Count; i++)
                 vector[i] = initialValue;
         }
     }
