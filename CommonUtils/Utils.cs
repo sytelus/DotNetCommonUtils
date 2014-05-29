@@ -2490,6 +2490,18 @@ namespace CommonUtils
 
             return mapLink.ToString();
         }
+
+        public static void InitializeArrayElement<T>(T[,] vectors, T initialValue)
+        {
+            for (var i = 0; i < vectors.GetLength(0); i++)
+                for (var j = 0; j < vectors.GetLength(1); j++)
+                    vectors[i, j] = initialValue;
+        }
+        public static void InitializeArrayElement<T>(IList<T> vector, T initialValue)
+        {
+            for (var i = 0; i < vector.Count; i++)
+                vector[i] = initialValue;
+        }
     }
 }
 
