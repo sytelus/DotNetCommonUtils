@@ -1645,6 +1645,11 @@ namespace CommonUtils
             return sortedDictionary;
         }
 
+        public static DateTime ParseJsonDate(string jsonDate)
+        {
+            return DateTime.ParseExact(jsonDate, @"yyyy-MM-ddTHH:mm:ssK", CultureInfo.InvariantCulture);
+        }
+
         public static void AddToDictionarySet<TKeyType, TValueType, TCollectionType>(this IDictionary<TKeyType, TCollectionType> dictionary, TKeyType key, TValueType valueToAdd) where TCollectionType:ICollection<TValueType>, new()
         {
             TCollectionType existingValue;
