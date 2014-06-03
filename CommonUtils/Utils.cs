@@ -1852,7 +1852,7 @@ namespace CommonUtils
             }
         }
 
-        public static IEnumerable<T> Concate<T>(this IEnumerable<IEnumerable<T>> sequences)
+        public static IEnumerable<T> Concat<T>(this IEnumerable<IEnumerable<T>> sequences)
         {
             var result = Enumerable.Empty<T>();
             foreach (var seq in sequences)
