@@ -24,6 +24,7 @@ using System.Xml.Serialization;
  */
 namespace CommonUtils
 {
+    using System.Threading.Tasks;
     using System.Web;
 
     public static class Utils
@@ -2711,6 +2712,11 @@ namespace CommonUtils
         {
             for (var i = 0; i < vector.Count; i++)
                 vector[i] = initialValue;
+        }
+
+        public static void Forget(this Task task)
+        {
+            //Do nothing for fire and forget tasks
         }
 
         #region LogMessage infrastructure
