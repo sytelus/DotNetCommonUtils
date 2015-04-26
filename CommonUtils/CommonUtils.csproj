@@ -58,6 +58,7 @@
     <Compile Include="GaussianDistribution.cs" />
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="Hasher.cs" />
+    <Compile Include="HopcroftKarp.cs" />
     <Compile Include="IEmpty.cs" />
     <Compile Include="JsonSerializer.cs" />
     <Compile Include="LinkedListSet.cs" />

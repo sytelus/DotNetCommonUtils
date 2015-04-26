@@ -57,6 +57,7 @@
     <Compile Include="CsvParserTests.cs" />
     <Compile Include="IifParserTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="HopcroftKarpTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CommonUtils\CommonUtils.csproj">
