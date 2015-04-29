@@ -56,84 +56,164 @@ namespace CommonUtils
         /// <returns>For each left vertice, corresponding ID for the matched right vertice</returns>
         public static IList<int> GetMatching(IList<int[]> gU, int gVCount)
         {
-            //Recreate gV with dummy NIL node
+            //Recreate gU with dummy NIL node
             gU = new List<int[]>(gU);
             gU.Add(new int[] {});
 
-            //Index of dummy NIL node
-            var iNil = gU.Count - 1;
-            var gUCount = iNil;
+            var iNil = gU.Count - 1; //Index of dummy node
+            var gUCount = iNil; //Count of nodes in U without dummy node
 
             //Create lists that would hold matching, by default they point to NIL
             var pairU = Enumerable.Repeat(iNil, gUCount).ToList();
             var pairV = Enumerable.Repeat(iNil, gVCount).ToList();
-            var dist = new int[gU.Count];
-            var q = new int[gU.Count];
 
+            var dist = new int[gU.Count];   //Array to store distances from BFS
+            var q = new int[gU.Count];      //Array to use as queue during BFS
+
+            //The modified version of BFS marks shortest augmented paths available using dist array
+            //When no more paths are available it returns false
+            //Note that we need to find augmented paths starting from either only U or V because 
+            //that paths ends on other side anyway.
             while (Bfs(gU, pairU, pairV, dist, iNil, gUCount, q))
             {
+                //For each unmatched vertex in U
                 for (var u = 0; u < gUCount; ++u)
                 {
                     if (pairU[u] == iNil)
+                    {
+                        //See if we have shotest augmnted path. If we do, then
+                        //Dfs will also mark vertices along that path unusable for 
+                        //any other paths in next calls so that paths remain vertex disjoint.
+                        //Also if Dfs does find shortest augmnted path then it will do symmetric
+                        //difference along that path, setting proper pairs in pairU and pairV
                         Dfs(gU, pairU, pairV, dist, iNil, u);
+                    }
                 }
             }
 
+            //Return pairs for U, converting iNil to -1 to indicate no pairing and also eliminate last dummy vertex 
             return pairU.Select(i => i == iNil ? -1 : i).Take(gUCount).ToList();
         }
 
+        /// <summary>
+        /// Finds all available shortest augmented paths in the graph
+        /// </summary>
+        /// <param name="gU">Adjecency list of U</param>
+        /// <param name="pairU">Matching so far for U</param>
+        /// <param name="pairV">Matching so far for V (should be consistant with pairU)</param>
+        /// <param name="dist">dist array marks the next vertex in shortest path from previous vertex</param>
+        /// <param name="iNil">Which vertice is our dummy node</param>
+        /// <param name="gUCount">This is just alias for iNil for better readability</param>
+        /// <param name="q">The array to be used as queue during BFS. It's just passed from outside to avoid recreating it during each call.</param>
+        /// <returns>true if atleast one augmented path exists else false</returns>
         private static bool Bfs(IList<int[]> gU, IReadOnlyList<int> pairU, IReadOnlyList<int> pairV, IList<int> dist, int iNil, int gUCount, IList<int> q)
         {
+            //Pointers in queue
             int qiEnqueue = 0, qiDequeue = 0;
+
+            //For each vertex in U, initialize distance to 0 if it was unmatched fo far
+            //We will find shortest augmented paths from each unmatched vertices
             for (var u = 0; u < gUCount; ++u)
             {
                 if (pairU[u] == iNil)
                 {
                     dist[u] = 0;
+
+                    //enqueue all unmatched vertices in queue
                     q[qiEnqueue++] = u;
                 }
                 else
                     dist[u] = int.MaxValue;
             }
+
+            //Set distance of dummy node to infinite. When we find the shortest path, we would end at dummy node and BFS
+            //would set its distance to the length of shortest path. We can use this length to eliminate any path that are 
+            //longer than. If more than one vertex has same length shortest path then for both of them we can follow the 
+            //dist array all the way to dummy node and when we get there we can check that length of path so far is the 
+            //same value as in dist[iNil].
             dist[iNil] = int.MaxValue;
 
+            //While queue is not empty
             while (qiDequeue < qiEnqueue)
             {
+                //Dequeue next node
                 var u = q[qiDequeue++];
+
+                //If length of path to this node has exceed the shortest path
+                //we already found then ignore this path and move on to next node
                 if (dist[u] < dist[iNil])
                 {
+                    //Go through our adjecency list of this node and
+                    //see if any of our neighbours for this node in V has an existing match in U OR is unmatched.
+                    //If it has existing matching then we will travel to next node in U and repeat the process.
+                    //If there was no existing matching then nextU is dummy node. In that case, if we are getting there
+                    //for the first time then we have found the shortest path and we mark dummy nodes dist as length of 
+                    //shortest path we found. If it isn't our first time then either we have another shortest path of same
+                    //length or it's a longer path. In either case we can just ignore because if it was another shortest path
+                    //then dist of dummy node is already marked correctly. If it was not then dist of dummy node will be less than
+                    //dist[u] and it would ignored by Dfs.
                     foreach (var v in gU[u])
                     {
                         var nextU = pairV[v];
                         if (dist[nextU] == int.MaxValue)
                         {
                             dist[nextU] = dist[u] + 1;
+
+                            //Note that queue will always contain vertices from U. We don't need dist array for V. This is 
+                            //because from vertex in U we always go to next vertex in U (or dummy node).
                             q[qiEnqueue++] = nextU;
                         }
                     }
                 }
             }
 
+            //If we every found a shortest path then dist[iNil] would contain length of the shortest path
             return dist[iNil] != int.MaxValue;
         }
 
+        /// <summary>
+        /// Uses values set in dist array to traverse the path from each unmatched node in U. If we arrive at iNil 
+        /// and if our path length matches dist[iNil] then we have one of the shortest paths. In that case, we do
+        /// symmetric difference on existing matching with shortest path.
+        /// </summary>
+        /// <param name="gU">Adjecency list of U</param>
+        /// <param name="pairU">Matching so far for U</param>
+        /// <param name="pairV">Matching so far for V (should be consistant with pairU)</param>
+        /// <param name="dist">dist array marks the next vertex in shortest path from previous vertex</param>
+        /// <param name="iNil">Which vertice is our dummy node</param>
+        /// <param name="u">Node in U from which we need to find shortest augmented path</param>
+        /// <returns>Returns true if shortest augmented path was found from u</returns>
         private static bool Dfs(IList<int[]> gU, IList<int> pairU, IList<int> pairV, IList<int> dist, int iNil, int u)
         {
+            //Recursion termination: If we arrive at dummy node during traversal then we have shortest augmented path and so terminate.
             if (u != iNil)
             {
+                //For each neighbours of u, see if it's next node in the possible path
                 foreach (var v in gU[u])
                 {
                     var nextU = pairV[v];
+
+                    //The neigbour is next node in path if it's matching node is our distance + 1
                     if (dist[nextU] == dist[u] + 1)
                     {
+                        //Recursively see if for this next node in path, we have shortest augmented path available
                         if (Dfs(gU, pairU, pairV, dist, iNil, nextU))
                         {
+                            //If so then time to do symmetric difference! Note that pairV[u] either has previous matching or is unmatched.
+                            //If it had previous matching then setting pairV[v] to new value removes that matching and then adds a new matching
+                            //which in essence is symmetric difference.
                             pairU[u] = v;
                             pairV[v] = u;
                             return true;
                         }
                     }
                 }
+
+                //Mark our node unusable for getting included in any other paths so that all shortest augmented paths are
+                //vertex disjoint. For bipartiate case (but not for general graphs) it can be proved that doing this simple
+                //vertex elimination results in maximal set of vertex disjoint paths. Why not for general graphs? Imagine
+                //5 paths horizontally and one path vertical that cuts across the 5. If we choose vertices of vertical path then
+                //we need to eliminate all horizontal paths resulting in non-maximal set.
                 dist[u] = int.MaxValue;
                 return false;
             }
